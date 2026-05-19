@@ -181,7 +181,7 @@ If the screen stays black for more than 5 minutes, **something went wrong** — 
 Tap the numeric PIN you set during `pmbootstrap install` on the on-screen keypad.
 
 Once you're at the Plasma Mobile home:
-- ✅ **Tap a key in any text field** — you should feel a crisp Pixel-style haptic CLICK. If it feels buzzy/wrong, reboot once more (the haptic chip occasionally needs the init script to run on a fresh boot).
+- ✅ **Tap a key in any text field** — you should feel a crisp Pixel-style haptic CLICK. The kernel driver autoloads the haptic waveform library and configures the chip from boot; no userspace setup needed.
 - Open System Settings → Wi-Fi to connect to Wi-Fi.
 - You can SSH in from your computer at `user@172.16.42.1` (USB-net comes up automatically when phone is plugged in).
 
@@ -199,12 +199,18 @@ Hold Power for 15 seconds to force-power-off, then Power + Volume Down to re-ent
 The build needs ~15 GB free disk. Run `pmbootstrap zap` to clean caches, then retry.
 
 ### Haptics feel buzzy instead of crisp
-The init script may not have run. SSH in and manually run it:
+The kernel driver should auto-load `drv2624.bin` and park the chip in
+SEQ+CLICK mode on every boot. To verify it ran:
 ```sh
 ssh user@172.16.42.1
-sudo sh /etc/local.d/drv2624-init.start
+sudo dmesg | grep drv2624
+# expect: "drv2624.bin uploaded (25 byte RAM image)"
+sudo i2cget -f -y 9 0x5a 0x07   # MODE; expect 0x01
+sudo i2cget -f -y 9 0x5a 0x0F   # SEQ1; expect 0x01
 ```
-Then test a key tap in a text field. If still buzzy, the chip's RAM probably got wiped — reboot the phone.
+If `MODE` is `0x02` (RTP) instead of `0x01`, the firmware file is
+probably missing. Check `ls /lib/firmware/drv2624.bin` — it should be
+45 bytes and ships with the `firmware-google-sunfish` package.
 
 ### Where's my Wi-Fi password / data going to come from?
 You re-set everything from scratch — this is a clean install. Wi-Fi networks need to be re-added.
@@ -223,8 +229,7 @@ You don't. Yet. Those are listed as ❌ at the top of this README. Watch the [is
 device/community/
 ├── device-google-sunfish/      # ← Pixel 4a-specific stuff
 │   ├── APKBUILD
-│   ├── deviceinfo              # codename: google-sunfish
-│   └── drv2624-init.start      # ← THE haptic init script
+│   └── deviceinfo              # codename: google-sunfish
 ├── firmware-google-sunfish/    # ← extracted proprietary blobs
 │   ├── APKBUILD
 │   ├── a615_zap.mbn            # GPU shader (14 KB)
@@ -254,16 +259,18 @@ For stock-Pixel CLICK feel you need:
 1. Six chip registers programmed in a specific order (CONTROL1,
    CONTROL2 with `LIB_LRA + 1ms tick`, DRIVE_TIME for 172 Hz LRA, sine
    wave shape, autocal, OL_LRA_PERIOD).
-2. Factory calibration values from `/persist/haptics/drv2624.cal`
-   (`autocal: 18 150 0`, `lra_period: 241`) — automatically read at boot.
+2. Factory autocal compensation values (`18 150 0` for sunfish — passed
+   to the driver via the `ti,autocal-comp` DT property; originally
+   from `/persist/haptics/drv2624.cal`).
 3. Google's `drv2624.bin` RAM library (45 bytes, 4 effects: CLICK, TICK,
-   DOUBLE_CLICK, HEAVY_CLICK) uploaded into the chip's 1 kB RAM.
+   DOUBLE_CLICK, HEAVY_CLICK) uploaded into the chip's 1 kB RAM via
+   `request_firmware_nowait()`.
 4. Chip parked in `MODE=RAM Waveform Sequencer` with `WAV_FRM_SEQ1=1` so
    feedbackd's `FF_RUMBLE` triggers play CLICK from ROM, not RTP.
 
-All four happen in `/etc/local.d/drv2624-init.start`, which ships in the
-`device-google-sunfish` pmaport and runs at every boot via OpenRC's
-`local` service.
+All four happen **inside the kernel driver** (`drivers/input/misc/drv2624.c`)
+at probe time. No userspace init script. The driver also re-runs the
+full init on resume because the chip's RAM is volatile.
 
 ---
 

@@ -3,7 +3,7 @@
 pkgname=device-google-sunfish
 pkgdesc="Google Pixel 4a (sunfish) — Pixel 4a-specific overlay on top of device-qcom-sm7150"
 pkgver=1
-pkgrel=0
+pkgrel=1
 url="https://github.com/miromraz/pmaports-sunfish"
 license="MIT"
 arch="aarch64"
@@ -11,13 +11,11 @@ options="!check !archcheck"
 depends="
 	device-qcom-sm7150
 	firmware-google-sunfish
-	i2c-tools
 "
 makedepends="devicepkg-dev"
 
 source="
 	deviceinfo
-	drv2624-init.start
 "
 
 build() {
@@ -26,20 +24,8 @@ build() {
 
 package() {
 	devicepkg_package $startdir $pkgname
-
-	# Boot-time init for the TI DRV2624 haptic chip. Runs via OpenRC's
-	# `local` service. Configures every register Pixel's downstream
-	# kernel driver sets (sine waveform, 1 ms playback ticks, factory
-	# autocal from drv2624.cal, LRA period for the 172 Hz sunfish
-	# actuator), uploads the drv2624.bin RAM library, and parks the
-	# chip in RAM-waveform-sequencer mode with effect 1 (CLICK)
-	# pre-selected. Result: every feedbackd-routed FF_RUMBLE plays
-	# Pixel's stock CLICK rather than buzzy RTP.
-	install -Dm755 "$srcdir"/drv2624-init.start \
-		"$pkgdir"/etc/local.d/drv2624-init.start
 }
 
 sha512sums="
 043082db221e0c6ab9dea7250155e38f24fb7b22d1e8119f35e156f5772a43aeb85598990b390c1069e99f7322a67d44bdc1289c66101a9057df1fd7a3ce4864  deviceinfo
-dd48c4aaa2202fc389299b9028d947ad519ee47b714aa40ae3c647cc71e2942d42610cef1ca1818a85ed8dc75b1d8eaf238a820e108b6ba1a9a564ac67ae885b  drv2624-init.start
 "
