@@ -1,0 +1,40 @@
+# Reference: <https://postmarketos.org/devicepkg>
+pkgname=firmware-google-sunfish
+pkgver=1
+pkgrel=0
+pkgdesc="Firmware blobs for Google Pixel 4a (sunfish)"
+url="https://github.com/miromraz/pmaports-sunfish"
+arch="aarch64"
+license="proprietary"
+options="!check !strip !archcheck !tracedeps"
+source="
+	a615_zap.mbn
+	drv2624.bin
+"
+
+package() {
+	# Adreno A615 GPU zap shader — required for the Adreno DRM driver
+	# (msm_dpu + adreno) to leave its TrustZone-secure boot sequence.
+	# Extracted from /vendor/firmware/a615_zap.elf on stock Pixel 4a
+	# (Android 11 factory image). Qualcomm-signed; identical on every
+	# sunfish unit. Without this the GPU fails to init and kwin renders
+	# a black screen.
+	install -Dm644 "$srcdir"/a615_zap.mbn \
+		"$pkgdir"/lib/firmware/qcom/sm7150/google/sunfish/a615_zap.mbn
+
+	# DRV2624 haptic waveform RAM library. Contains 4 effects tuned for
+	# the Pixel 4a LRA: CLICK (id 1), TICK (id 2), DOUBLE_CLICK (id 3),
+	# HEAVY_CLICK (id 4). Fetched verbatim from the open AOSP tree at
+	# android.googlesource.com/device/google/sunfish/+/refs/heads/
+	# android11-release/vibrator/drv2624/drv2624.bin (45 bytes,
+	# 0x00002624 magic, Apache-2.0 licensed per the surrounding tree).
+	# Uploaded into the chip's 1 kB on-chip RAM at boot by the
+	# device-google-sunfish init script.
+	install -Dm644 "$srcdir"/drv2624.bin \
+		"$pkgdir"/lib/firmware/drv2624.bin
+}
+
+sha512sums="
+a3a8c579fb92137f5c4f52c6214e9709236e7b1e94f05577909e8bde9be3d947feaeaa720875ef92097a0cf6326e24252bb33b82631a2edaff1b3ac41512f91c  a615_zap.mbn
+7e13ef45eabaaba993275c32bf38f6f13372fbb904db151fb8a34a4ad913f8a6f693aecc13dcbec1e9964e142531146b8a11f260ede3d5e3d503e0903611b85f  drv2624.bin
+"

@@ -4,12 +4,12 @@
 
 _flavor="postmarketos-qcom-sm7150"
 pkgname=linux-$_flavor
-pkgver=6.13.4
-pkgrel=1
+pkgver=7.1_rc3
+pkgrel=28
 pkgdesc="Mainline Kernel fork for SM7150 devices"
 arch="aarch64"
 _carch="arm64"
-url="https://github.com/sm7150-mainline/linux"
+url="https://github.com/miromraz/linux"
 license="GPL-2.0-only"
 options="!strip !check !tracedeps
 	pmb:cross-native
@@ -17,11 +17,11 @@ options="!strip !check !tracedeps
 	"
 makedepends="bison findutils flex openssl-dev perl postmarketos-installkernel python3"
 
-_tag="$pkgver"
+_tag="sunfish-vibrator-only"
 
 # Source
 source="
-	$pkgname-v$_tag.tar.gz::$url/archive/v$_tag.tar.gz
+	$pkgname-$_tag.tar.gz::$url/archive/$_tag.tar.gz
 	config-$_flavor.$arch
 "
 builddir="$srcdir/linux-$_tag"
@@ -29,6 +29,7 @@ builddir="$srcdir/linux-$_tag"
 prepare() {
 	default_prepare
 	cp "$srcdir/config-$_flavor.$arch" .config
+	yes "" | make ARCH="$_carch" olddefconfig
 }
 
 build() {
@@ -71,6 +72,6 @@ package() {
 
 
 sha512sums="
-77e4c940c6e6ccbe89cf4f39b0f7f95c519a3a118f2ea261216f63f5bb05e599ed375b4ee31c3349b2baa48d8cf6189a704b9e915edfe25155c5c0901648fef2  linux-postmarketos-qcom-sm7150-v6.13.4.tar.gz
-3ebb29fd962754d0c4c9653ca06c69ef438ff2e2309b85b01e67adf5ea94ea9d68de339162eade054f64ed444b4734cda280eb2a294ca92e4f7e1d8585fcb561  config-postmarketos-qcom-sm7150.aarch64
+a6820379f0a6eac2887d9ebfc21c18c73c3bfc4a7f45212a6ea038bc25cca25c36604b5016b8105b846b2343c8028120542ca0cfc39af89a83e0be521308390d  linux-postmarketos-qcom-sm7150-sunfish-vibrator-only.tar.gz
+38975727599d3ab606e836640b035c4455edcd9ee8b8a546b48b2080a3ebb9cf1fa31c8ae472ea779bf1316edb98a5aa920a0f77b22a2ff5a50a22dad590075f  config-postmarketos-qcom-sm7150.aarch64
 "

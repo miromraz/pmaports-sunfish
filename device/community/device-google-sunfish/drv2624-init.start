@@ -1,0 +1,56 @@
+#!/bin/sh
+# Full DRV2624 init for Pixel 4a (sunfish) — runs at boot, after the
+# kernel driver binds. Programs the chip with Pixel's downstream register
+# sequence + uploads Google's factory-tuned drv2624.bin RAM library +
+# applies the factory haptic calibration. After this runs, userspace
+# (feedbackd, Plasma haptics, etc.) gets stock-Android-quality clicks.
+
+I2C_BUS=9
+ADDR=0x5a
+I="i2cset -f -y $I2C_BUS $ADDR"
+
+# Wait for the kernel driver to bind to the chip.
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    [ -e /sys/bus/i2c/devices/9-005a/driver ] && break
+    sleep 0.2
+done
+
+# Standby; configure; bring out of standby.
+$I 0x07 0x40                   # MODE: standby
+
+$I 0x08 0x8c                   # CONTROL1: LRA + AUTO_BRK_OL + AUTO_BRK_INTO_STBY
+$I 0x0D 0xA0                   # CONTROL2: LIB_LRA=1, PLAYBACK_INTERVAL=1ms
+
+# Factory autocal compensation values (from /persist/haptics/drv2624.cal:
+# "autocal: 18 150 0")
+$I 0x21 18
+$I 0x22 150
+$I 0x23 0
+
+$I 0x27 0x18                   # DRIVE_TIME for 172 Hz LRA (5*(1000-172)/172 = 24)
+$I 0x28 0x22                   # BLANKING + IDISS
+$I 0x29 0x00                   # ZC_DET_TIME
+$I 0x2C 0x01                   # LRA_WAVE_SHAPE = sine (not square)
+
+# Open-loop LRA period from cal file ("lra_period: 241" = 0x00F1)
+$I 0x2E 0x00
+$I 0x2F 0xF1
+
+# Upload Pixel's drv2624.bin RAM payload (post-20-byte-header, 25 bytes).
+# Library contains effect IDs 1 (CLICK), 2 (TICK), 3 (DOUBLE_CLICK), 4 (HEAVY_CLICK).
+$I 0xFD 0x00
+$I 0xFE 0x00
+for b in 0x00 0x00 0x0d 0x02 0x00 0x0f 0x02 0x00 0x11 0x06 0x00 0x17 0x02 \
+         0x3f 0x06 0x3f 0x06 0x3f 0x08 0x00 0x8d 0x3f 0x0c 0x3f 0x06; do
+    $I 0xFF $b
+done
+
+# Pre-select effect 1 (CLICK) and park the chip in RAM Waveform Sequencer
+# mode. When the mainline driver's FF_RUMBLE play callback writes the GO
+# bit, the chip plays CLICK from RAM instead of pure RTP. This is the hack
+# that makes feedbackd-routed events (Plasma keyboard, notifications, etc.)
+# feel like the stock-Android Pixel 4a CLICK rather than a buzzy RTP burst.
+$I 0x0F 0x01                   # WAV_FRM_SEQ1 = effect 1 (CLICK)
+$I 0x10 0x00                   # WAV_FRM_SEQ2 = 0 (terminator)
+$I 0x17 0x00                   # WAV_SEQ_LOOP_1 = 0
+$I 0x07 0x01                   # MODE: RAM Waveform Sequencer, not standby
