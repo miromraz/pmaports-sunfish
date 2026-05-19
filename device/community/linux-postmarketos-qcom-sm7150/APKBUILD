@@ -5,7 +5,7 @@
 _flavor="postmarketos-qcom-sm7150"
 pkgname=linux-$_flavor
 pkgver=7.1_rc3
-pkgrel=30
+pkgrel=34
 pkgdesc="Mainline Kernel fork for SM7150 devices"
 arch="aarch64"
 _carch="arm64"
@@ -72,6 +72,6 @@ package() {
 
 
 sha512sums="
-5feab85946fc2ecd1c2b0aacee014791460e1632be42adc316a0040204168b06d82eaa276747c15af4b5d849ee0a4bfd041f3bb8f2bafd434dc95fd2f438ae34  linux-postmarketos-qcom-sm7150-sunfish-vibrator-only.tar.gz
+ad78a46dcc1bd29498161481ad95d75f55a4d63c4709578ac723d1ddcca2d5f970f29f5b4f6571237e1a29742b8eb29ee83b3d0925664f04cd05c5e62896a1d1  linux-postmarketos-qcom-sm7150-sunfish-vibrator-only.tar.gz
 38975727599d3ab606e836640b035c4455edcd9ee8b8a546b48b2080a3ebb9cf1fa31c8ae472ea779bf1316edb98a5aa920a0f77b22a2ff5a50a22dad590075f  config-postmarketos-qcom-sm7150.aarch64
 "

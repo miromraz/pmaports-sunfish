@@ -199,18 +199,16 @@ Hold Power for 15 seconds to force-power-off, then Power + Volume Down to re-ent
 The build needs ~15 GB free disk. Run `pmbootstrap zap` to clean caches, then retry.
 
 ### Haptics feel buzzy instead of crisp
-The kernel driver should auto-load `drv2624.bin` and park the chip in
-SEQ+CLICK mode on every boot. To verify it ran:
+The kernel driver embeds the 25-byte ROM library and uploads it to
+chip RAM at probe. To verify chip state:
 ```sh
 ssh user@172.16.42.1
-sudo dmesg | grep drv2624
-# expect: "drv2624.bin uploaded (25 byte RAM image)"
-sudo i2cget -f -y 9 0x5a 0x07   # MODE; expect 0x01
-sudo i2cget -f -y 9 0x5a 0x0F   # SEQ1; expect 0x01
+sudo i2cget -f -y 9 0x5a 0x07   # MODE; expect 0x01 (Waveform Sequencer)
+sudo i2cget -f -y 9 0x5a 0x0F   # WAV_FRM_SEQ1; expect 0x01 (CLICK queued)
+sudo i2cget -f -y 9 0x5a 0x2F   # OL_LRA_PERIOD low byte; expect 0xf1
 ```
-If `MODE` is `0x02` (RTP) instead of `0x01`, the firmware file is
-probably missing. Check `ls /lib/firmware/drv2624.bin` — it should be
-45 bytes and ships with the `firmware-google-sunfish` package.
+If those don't match, the kernel module probably failed to probe
+(e.g. enable GPIO low). Check `dmesg | grep drv2624` for errors.
 
 ### Where's my Wi-Fi password / data going to come from?
 You re-set everything from scratch — this is a clean install. Wi-Fi networks need to be re-added.
@@ -229,14 +227,17 @@ You don't. Yet. Those are listed as ❌ at the top of this README. Watch the [is
 device/community/
 ├── device-google-sunfish/      # ← Pixel 4a-specific stuff
 │   ├── APKBUILD
-│   └── deviceinfo              # codename: google-sunfish
+│   ├── deviceinfo              # codename: google-sunfish
+│   └── google,sunfish.json     # feedbackd haptic theme
 ├── firmware-google-sunfish/    # ← extracted proprietary blobs
 │   ├── APKBUILD
-│   ├── a615_zap.mbn            # GPU shader (14 KB)
-│   └── drv2624.bin             # haptic ROM library (45 B)
+│   └── a615_zap.mbn            # GPU shader (14 KB)
 ├── device-qcom-sm7150/         # ← shared SoC-level package
 └── linux-postmarketos-qcom-sm7150/   # ← our kernel APKBUILD
 ```
+
+The haptic ROM library is **embedded directly in the kernel driver**
+— no separate firmware blob to ship.
 
 The kernel itself lives in a **separate repo**:
 https://github.com/miromraz/linux (branch `sunfish-vibrator-only`)
@@ -253,20 +254,25 @@ The Pixel 4a uses a TI **DRV2624** LRA driver chip (i2c-9 address 0x5a,
 enable on TLMM gpio 11). No mainline driver exists, so we wrote one
 (see kernel branch).
 
-The kernel driver alone gives you working but **buzzy** vibrations.
-For stock-Pixel CLICK feel you need:
+For stock-Pixel CLICK feel the driver does, in order, at probe time:
 
-1. Six chip registers programmed in a specific order (CONTROL1,
-   CONTROL2 with `LIB_LRA + 1ms tick`, DRIVE_TIME for 172 Hz LRA, sine
-   wave shape, autocal, OL_LRA_PERIOD).
-2. Factory autocal compensation values (`18 150 0` for sunfish — passed
-   to the driver via the `ti,autocal-comp` DT property; originally
-   from `/persist/haptics/drv2624.cal`).
-3. Google's `drv2624.bin` RAM library (45 bytes, 4 effects: CLICK, TICK,
-   DOUBLE_CLICK, HEAVY_CLICK) uploaded into the chip's 1 kB RAM via
-   `request_firmware_nowait()`.
-4. Chip parked in `MODE=RAM Waveform Sequencer` with `WAV_FRM_SEQ1=1` so
-   feedbackd's `FF_RUMBLE` triggers play CLICK from ROM, not RTP.
+1. Configures CONTROL1 (LRA + auto-brake), CONTROL2 (1 ms playback
+   tick), DRIVE_TIME for 172 Hz LRA, sine wave shape, AUTOCAL_COMP.
+2. Writes per-unit factory `OL_LRA_PERIOD = 241` from the
+   `ti,ol-lra-period` DT property (originally read out of
+   `/persist/haptics/drv2624.cal`).
+3. Uploads the 25-byte ROM waveform library **embedded directly in the
+   driver source** (Apache-2.0, taken from AOSP's
+   `device/google/sunfish/vibrator/drv2624/drv2624.bin`). 4 effects:
+   CLICK (id 1), TICK (id 2), DOUBLE_CLICK (id 3), HEAVY_CLICK (id 4).
+4. Parks the chip in `MODE=RAM Waveform Sequencer` with `WAV_FRM_SEQ1=1`,
+   so feedbackd's `FF_RUMBLE` triggers play CLICK from ROM, not RTP.
+
+The 25-byte library is embedded rather than loaded via
+`request_firmware()` because msm-firmware-loader's `firmware_class.path`
+overrides the kernel's default `/lib/firmware/` lookup on this SoC and
+the async callback silently fails. Embedding is faster, race-free, and
+removes any user-space dependency.
 
 All four happen **inside the kernel driver** (`drivers/input/misc/drv2624.c`)
 at probe time. No userspace init script. The driver also re-runs the

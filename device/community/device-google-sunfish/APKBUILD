@@ -3,19 +3,21 @@
 pkgname=device-google-sunfish
 pkgdesc="Google Pixel 4a (sunfish) — Pixel 4a-specific overlay on top of device-qcom-sm7150"
 pkgver=1
-pkgrel=1
+pkgrel=2
 url="https://github.com/miromraz/pmaports-sunfish"
 license="MIT"
 arch="aarch64"
 options="!check !archcheck"
 depends="
 	device-qcom-sm7150
+	feedbackd
 	firmware-google-sunfish
 "
 makedepends="devicepkg-dev"
 
 source="
 	deviceinfo
+	google,sunfish.json
 "
 
 build() {
@@ -24,8 +26,11 @@ build() {
 
 package() {
 	devicepkg_package $startdir $pkgname
+	install -Dm644 "$srcdir/google,sunfish.json" \
+		"$pkgdir/usr/share/feedbackd/themes/google,sunfish.json"
 }
 
 sha512sums="
 043082db221e0c6ab9dea7250155e38f24fb7b22d1e8119f35e156f5772a43aeb85598990b390c1069e99f7322a67d44bdc1289c66101a9057df1fd7a3ce4864  deviceinfo
+95e8d30c056d0616690cf2c088231cf740a8095966325e3feb561f816733f5aa1a01c9b971250a85c0ad93b6df9c00722c7412137e87e0e18362dba03be0b974  google,sunfish.json
 "
