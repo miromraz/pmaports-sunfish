@@ -1,0 +1,84 @@
+# Maintainer: Danila Tikhonov <danila@jiaxyga.com>
+# Co-Maintainer: David Wronek <david@mainlining.org>
+# Co-Maintainer: Jens Reidel <adrian@travitia.xyz>
+
+_flavor="postmarketos-qcom-sm7150-sunfish"
+pkgname=linux-$_flavor
+pkgver=6.18.0
+pkgrel=0
+pkgdesc="Mainline kernel fork for the Google Pixel 4a (sunfish)"
+arch="aarch64"
+_carch="arm64"
+url="https://github.com/miromraz/linux"
+license="GPL-2.0-only"
+options="!strip !check !tracedeps
+	pmb:cross-native
+	pmb:kconfigcheck-community
+	"
+makedepends="bison findutils flex openssl-dev perl postmarketos-installkernel python3"
+
+# Distinct package name so this fork never loses a version race to the
+# upstream linux-postmarketos-qcom-sm7150 binary on the pmOS mirror
+# (apk installs the highest version). provides/replaces let it satisfy
+# device-qcom-sm7150's kernel dependency in place of the generic package.
+provides="linux-postmarketos-qcom-sm7150"
+replaces="linux-postmarketos-qcom-sm7150"
+
+_tag="381d24036abc3c13402a82e8d808cafb03adcf36"
+
+# Source
+source="
+	$pkgname-$_tag.tar.gz::$url/archive/$_tag.tar.gz
+	config-$_flavor.$arch
+"
+builddir="$srcdir/linux-$_tag"
+
+prepare() {
+	default_prepare
+	cp "$srcdir/config-$_flavor.$arch" .config
+	yes "" | make ARCH="$_carch" olddefconfig
+}
+
+build() {
+	unset LDFLAGS
+	make ARCH="$_carch" CC="${CC:-gcc}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-$_flavor"
+}
+
+package() {
+	if [ -e "$builddir/arch/$_carch/boot/vmlinuz.efi" ]; then
+		# ZBOOT EFI decompressor for EFI booting
+		install -Dm644 "$builddir/arch/$_carch/boot/vmlinuz.efi" \
+			"$pkgdir/boot/linux.efi"
+
+		# Old GZIP'd kernel image for boot.img compatibility
+		install -Dm644 "$builddir/arch/$_carch/boot/vmlinuz" \
+			"$pkgdir/boot/vmlinuz"
+	else
+		echo "WARNING: CONFIG_ZBOOT not enabled!"
+		install -Dm644 "$builddir/arch/$_carch/boot/Image.gz" \
+			"$pkgdir/boot/vmlinuz"
+	fi
+
+	make modules_install dtbs_install \
+		ARCH="$_carch" \
+		INSTALL_PATH="$pkgdir"/boot/ \
+		INSTALL_MOD_PATH="$pkgdir" \
+		INSTALL_MOD_STRIP=1 \
+		INSTALL_DTBS_PATH="$pkgdir"/boot/dtbs-tmp
+
+	mkdir -p "$pkgdir"/boot/dtbs/qcom
+	cp -r "$pkgdir"/boot/dtbs-tmp/qcom/sm7150* "$pkgdir"/boot/dtbs/qcom
+	rm -rf "$pkgdir"/boot/dtbs-tmp
+
+	rm -f "$pkgdir"/lib/modules/*/build "$pkgdir"/lib/modules/*/source
+
+	install -D "$builddir"/include/config/kernel.release \
+		"$pkgdir"/usr/share/kernel/$_flavor/kernel.release
+}
+
+
+sha512sums="
+923edab06f5cf21025e20012607c2df6953639f26937c41b7168cb0166d3aff05ad433db6719453038dad9808c082f65fc4cf4b6c29c0cd2985bf11f4cc7054b  linux-postmarketos-qcom-sm7150-sunfish-381d24036abc3c13402a82e8d808cafb03adcf36.tar.gz
+38975727599d3ab606e836640b035c4455edcd9ee8b8a546b48b2080a3ebb9cf1fa31c8ae472ea779bf1316edb98a5aa920a0f77b22a2ff5a50a22dad590075f  config-postmarketos-qcom-sm7150-sunfish.aarch64
+"
