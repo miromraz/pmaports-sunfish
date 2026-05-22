@@ -4,8 +4,8 @@
 
 _flavor="postmarketos-qcom-sm7150-sunfish"
 pkgname=linux-$_flavor
-pkgver=6.18.0
-pkgrel=0
+pkgver=7.1_rc3
+pkgrel=5
 pkgdesc="Mainline kernel fork for the Google Pixel 4a (sunfish)"
 arch="aarch64"
 _carch="arm64"
@@ -15,7 +15,7 @@ options="!strip !check !tracedeps
 	pmb:cross-native
 	pmb:kconfigcheck-community
 	"
-makedepends="bison findutils flex openssl-dev perl postmarketos-installkernel python3"
+makedepends="bison findutils flex openssl-dev perl postmarketos-installkernel python3 zstd"
 
 # Distinct package name so this fork never loses a version race to the
 # upstream linux-postmarketos-qcom-sm7150 binary on the pmOS mirror
@@ -25,13 +25,17 @@ makedepends="bison findutils flex openssl-dev perl postmarketos-installkernel py
 provides="linux-postmarketos-qcom-sm7150"
 provider_priority=100
 replaces="linux-postmarketos-qcom-sm7150"
+install="$pkgname.post-install"
 
-_tag="381d24036abc3c13402a82e8d808cafb03adcf36"
+# tip of sunfish-vibrator-v7.1_rc3 on miromraz/linux (drv2624 + stmfts + charging)
+_tag="21303a3f5ea5148f2138fc4ec97657c27b450423"
 
 # Source
 source="
 	$pkgname-$_tag.tar.gz::$url/archive/$_tag.tar.gz
 	config-$_flavor.$arch
+	sunfish-defer.conf
+	sunfish-modules.start
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -77,10 +81,20 @@ package() {
 
 	install -D "$builddir"/include/config/kernel.release \
 		"$pkgdir"/usr/share/kernel/$_flavor/kernel.release
+
+	# Deferred-load workaround for the boot-coldplug probe race:
+	# blacklist the touch + haptics drivers from udev auto-load, and
+	# load them just after boot via local.d, where the probe is reliable.
+	install -Dm644 "$srcdir"/sunfish-defer.conf \
+		"$pkgdir"/etc/modprobe.d/sunfish-defer.conf
+	install -Dm755 "$srcdir"/sunfish-modules.start \
+		"$pkgdir"/etc/local.d/sunfish-modules.start
 }
 
 
 sha512sums="
-923edab06f5cf21025e20012607c2df6953639f26937c41b7168cb0166d3aff05ad433db6719453038dad9808c082f65fc4cf4b6c29c0cd2985bf11f4cc7054b  linux-postmarketos-qcom-sm7150-sunfish-381d24036abc3c13402a82e8d808cafb03adcf36.tar.gz
-38975727599d3ab606e836640b035c4455edcd9ee8b8a546b48b2080a3ebb9cf1fa31c8ae472ea779bf1316edb98a5aa920a0f77b22a2ff5a50a22dad590075f  config-postmarketos-qcom-sm7150-sunfish.aarch64
+ec131a2beec373bfc36cba161f03a89ad30641279b446dd1c25453f021f8a2140d31b65436b43d3ee8fad590fc9787d379d95d7420bb4bdd7cb9352eafa76295  linux-postmarketos-qcom-sm7150-sunfish-21303a3f5ea5148f2138fc4ec97657c27b450423.tar.gz
+6f179d78d94ec919a4633af0e7bebcdab755a88c627cd12899ed953edb822401033be7d639c1c6342059b6baeae623a370c1845c6ae89c44f217a6f9069fa184  config-postmarketos-qcom-sm7150-sunfish.aarch64
+db29cbfe36081e8f3c1bbf50bfb3333d72fb9165da174c90d246254049f5d9680f72b4755ee6425d0f7f2ac187f4c8fb33a6938ce672a52414acddfe22311f8d  sunfish-defer.conf
+fb0b415aa11c56ce44b1a0086fe7e48ea0c970db0383c4320765fe9091dfe3c5f28f1292d43490192c40d6d581b30078089f6b832c6d9842a7c182f76d9d7c09  sunfish-modules.start
 "

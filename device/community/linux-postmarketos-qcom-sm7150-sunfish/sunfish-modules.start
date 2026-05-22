@@ -1,0 +1,6 @@
+#!/bin/sh
+# Load the sunfish touch + haptics drivers after the boot coldplug has
+# settled, avoiding the intermittent boot-time probe race. They are kept
+# off the coldplug path by /etc/modprobe.d/sunfish-defer.conf.
+modprobe stmfts
+modprobe drv2624

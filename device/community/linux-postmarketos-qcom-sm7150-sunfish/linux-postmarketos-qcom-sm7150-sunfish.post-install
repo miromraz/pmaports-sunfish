@@ -1,0 +1,5 @@
+#!/bin/sh
+# /etc/local.d/sunfish-modules.start (the deferred driver load) only runs
+# if the OpenRC "local" service is in the default runlevel. Ensure it is.
+rc-update add local default 2>/dev/null
+exit 0
