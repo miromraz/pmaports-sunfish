@@ -19,9 +19,11 @@ makedepends="bison findutils flex openssl-dev perl postmarketos-installkernel py
 
 # Distinct package name so this fork never loses a version race to the
 # upstream linux-postmarketos-qcom-sm7150 binary on the pmOS mirror
-# (apk installs the highest version). provides/replaces let it satisfy
-# device-qcom-sm7150's kernel dependency in place of the generic package.
+# (apk installs the highest version). provides/replaces/provider_priority
+# let it satisfy device-qcom-sm7150's kernel dependency in place of the
+# generic package; provider_priority makes apk prefer this fork kernel.
 provides="linux-postmarketos-qcom-sm7150"
+provider_priority=100
 replaces="linux-postmarketos-qcom-sm7150"
 
 _tag="381d24036abc3c13402a82e8d808cafb03adcf36"
