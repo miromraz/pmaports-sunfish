@@ -6,7 +6,7 @@ maintainer="Aelin <aelin@postmarketos.org>"
 pkgname=device-qcom-sm7150
 pkgdesc="Generic device package for Qualcomm SM7150 devices"
 pkgver=11
-pkgrel=0
+pkgrel=1
 url="https://postmarketos.org"
 license="MIT"
 arch="aarch64"
@@ -17,6 +17,7 @@ depends="
 	hexagonrpcd
 	linux-postmarketos-qcom-sm7150
 	make-dynpart-mappings
+	polkit-elogind
 	postmarketos-base
 	soc-qcom
 	soc-qcom-modem
