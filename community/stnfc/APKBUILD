@@ -1,0 +1,55 @@
+# Maintainer: miromraz <noreply@example.com>
+pkgname=stnfc
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="Userspace NFC toolkit for the Google Pixel 4a's ST21NFC contactless front-end"
+url="https://github.com/miromraz/stnfc"
+arch="aarch64"
+license="GPL-2.0-or-later"
+depends="
+	py3-gobject3
+	gtk4.0
+	libadwaita
+"
+makedepends="musl-dev linux-headers"
+options="!check"
+source="$pkgname-$pkgver.tar.gz::https://github.com/miromraz/stnfc/archive/refs/tags/v$pkgver.tar.gz"
+builddir="$srcdir/$pkgname-$pkgver"
+
+unpack() {
+	# abuild's default_unpack invokes pigz to decompress *.tar.gz, but
+	# under crossdirect /native/usr/lib/crossdirect/aarch64/pigz shadows
+	# /usr/bin/pigz and the wrapper refuses to act on a .gz file, leaving
+	# tar with an empty stream. See [[abuild-targz-crossdirect-trap]].
+	# Sidestep it with a direct `tar -xz`, which uses tar's built-in
+	# gzip support via zlib — no external decompressor.
+	mkdir -p "$srcdir"
+	msg "Unpacking $SRCDEST/$pkgname-$pkgver.tar.gz (custom path, bypassing pigz)"
+	tar -xzf "$SRCDEST/$pkgname-$pkgver.tar.gz" -C "$srcdir"
+}
+
+build() {
+	# Upstream Makefile defaults CC := $(CROSS_COMPILE)gcc, which fights
+	# abuild's own CC. Pass CC explicitly on the make command line so the
+	# Alpine cross-toolchain wins; clear CROSS_COMPILE so the Makefile
+	# doesn't double-prefix.
+	make CC="${CC:-gcc}" CROSS_COMPILE= \
+		CFLAGS="${CFLAGS:--O2} -Wall -static"
+}
+
+package() {
+	install -Dm755 stnfc "$pkgdir"/usr/bin/stnfc
+	install -Dm755 gui/stnfc_gui.py "$pkgdir"/usr/bin/stnfc-gui
+	install -Dm644 gui/io.github.miromraz.stnfc.desktop \
+		"$pkgdir"/usr/share/applications/io.github.miromraz.stnfc.desktop
+
+	install -dm755 "$pkgdir"/etc/sudoers.d
+	cat > "$pkgdir"/etc/sudoers.d/stnfc <<-'SUDO'
+		%wheel ALL=(root) NOPASSWD: /usr/bin/stnfc
+	SUDO
+	chmod 0440 "$pkgdir"/etc/sudoers.d/stnfc
+}
+
+sha512sums="
+1990fb51eef8d5daea2321ec2be2060231fd8d98f9950b50713d265b3212959ec01b3758be96318cbc19ca5c0461bb660baff7393d7ead0a8f2fd774923775ab  stnfc-0.1.0.tar.gz
+"
