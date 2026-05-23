@@ -5,7 +5,7 @@
 _flavor="postmarketos-qcom-sm7150-sunfish"
 pkgname=linux-$_flavor
 pkgver=7.1_rc3
-pkgrel=6
+pkgrel=8
 pkgdesc="Mainline kernel fork for the Google Pixel 4a (sunfish)"
 arch="aarch64"
 _carch="arm64"
@@ -36,6 +36,7 @@ source="
 	config-$_flavor.$arch
 	sunfish-defer.conf
 	sunfish-modules.start
+	0001-stmfts-drm-panel-follower-for-sunfish.patch
 "
 builddir="$srcdir/linux-$_tag"
 
@@ -97,4 +98,5 @@ sha512sums="
 6f179d78d94ec919a4633af0e7bebcdab755a88c627cd12899ed953edb822401033be7d639c1c6342059b6baeae623a370c1845c6ae89c44f217a6f9069fa184  config-postmarketos-qcom-sm7150-sunfish.aarch64
 db29cbfe36081e8f3c1bbf50bfb3333d72fb9165da174c90d246254049f5d9680f72b4755ee6425d0f7f2ac187f4c8fb33a6938ce672a52414acddfe22311f8d  sunfish-defer.conf
 fb0b415aa11c56ce44b1a0086fe7e48ea0c970db0383c4320765fe9091dfe3c5f28f1292d43490192c40d6d581b30078089f6b832c6d9842a7c182f76d9d7c09  sunfish-modules.start
+7f594fda6380a12a0735fc0d7a14d7b5f9fbc49efb5560583e81b7161eec841c012b3ffab6390315891073a8da8d1477117a4ce29ab8b986dbb73d809cca18ed  0001-stmfts-drm-panel-follower-for-sunfish.patch
 "
